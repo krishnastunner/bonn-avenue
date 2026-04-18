@@ -1,0 +1,46 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 { text-wrap: pretty; }
+
+::selection { background: var(--accent); color: var(--cream); }
+
+.ticker {
+  display: inline-block;
+  padding-left: 100%;
+  animation: tick 40s linear infinite;
+}
+
+@keyframes tick {
+  to { transform: translateX(-100%); }
+}
+
+@media (max-width: 900px) {
+  .about-grid      { grid-template-columns: 1fr !important; }
+  .mix-featured    { grid-template-columns: 1fr !important; }
+  .book-form       { grid-template-columns: 1fr !important; }
+  .hero-side       { display: none !important; }
+  .gallery-grid > * { grid-column: 1 !important; grid-row: auto !important; }
+}
+
+@media (max-width: 620px) {
+  .nav-links  { display: none !important; }
+  .nav-loc    { display: none !important; }
+  .hero-bottom { gap: 14px !important; }
+}
+
+/* SoundCloud widget hidden audio engine */
+.sc-widget-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
