@@ -3,7 +3,7 @@ import { Reveal } from './ui/Reveal'
 import { Mono } from './ui/Mono'
 import { Pill } from './ui/Pill'
 import { Photo } from './ui/Photo'
-import { MIXES } from '../data/mixes'
+import { supabase } from '../lib/supabase'
 
 const SC_PROFILE = 'https://soundcloud.com/bonnavenue'
 
@@ -97,10 +97,21 @@ function SCWidget({ scUrl, playing, onReady, onProgress, onFinish, iframeRef }) 
 }
 
 export function Mixes() {
+  const [mixes, setMixes] = useState([])
   const [active, setActive] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [curTime, setCurTime] = useState(0)
+
+  useEffect(() => {
+    supabase
+      .from('mixes')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data && data.length > 0) setMixes(data)
+      })
+  }, [])
 
   // Web Audio refs
   const ctxRef = useRef(null)
@@ -117,8 +128,15 @@ export function Mixes() {
   const scIframeRef = useRef(null)
   const scWidgetRef = useRef(null)
 
-  const m = MIXES[active]
-  const hasScUrl = Boolean(m.scUrl)
+  // Guard: while mixes are loading, render nothing
+  if (!mixes.length) return (
+    <section id="listen" style={{ padding: 'clamp(80px,12vw,160px) clamp(24px,5vw,80px)', background: 'var(--bg-alt)' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 11, opacity: 0.4 }}>Loading…</div>
+    </section>
+  )
+
+  const m = mixes[active]
+  const hasScUrl = Boolean(m?.sc_url)
 
   // Load SC Widget API once
   useEffect(() => {
@@ -256,7 +274,7 @@ export function Mixes() {
         <Reveal>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
             <Mono>The Catalog · 2023—26</Mono>
-            <Mono style={{ color: 'var(--ink-faint)' }}>{MIXES.length} releases</Mono>
+            <Mono style={{ color: 'var(--ink-faint)' }}>{mixes.length} releases</Mono>
           </div>
         </Reveal>
         <Reveal delay={100}>
@@ -268,18 +286,18 @@ export function Mixes() {
         <Reveal>
           <div className="mix-featured" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.2fr)', gap: 'clamp(24px,4vw,60px)', alignItems: 'stretch', paddingBottom: 60, borderBottom: '1px solid var(--line)' }}>
             <div style={{ position: 'relative' }}>
-              <Photo src={m.cover} style={{ aspectRatio: '1/1', width: '100%' }} />
+              <Photo src={m.cover_url} style={{ aspectRatio: '1/1', width: '100%' }} />
               <div style={{ position: 'absolute', top: 18, left: 18, padding: '6px 12px', background: 'var(--cream)', color: 'var(--ink)' }}>
-                <Mono size={10}>BA {m.n}{playing ? ' · ●' : ''}</Mono>
+                <Mono size={10}>BA {m.catalog_no}{playing ? ' · ●' : ''}</Mono>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <Mono style={{ color: 'var(--ink-faint)' }}>{m.date} · {m.len}</Mono>
+                <Mono style={{ color: 'var(--ink-faint)' }}>{m.release_date} · {m.duration}</Mono>
                 <div style={{ marginTop: 16, fontFamily: 'var(--display)', fontWeight: 400, fontSize: 'clamp(32px,5vw,72px)', lineHeight: 1, fontStyle: 'italic' }}>{m.title}</div>
                 <div style={{ marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {m.tags.map(tag => (
+                  {(m.tags || []).map(tag => (
                     <span key={tag} style={{ padding: '5px 12px', border: '1px solid var(--line)', borderRadius: 999, fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>{tag}</span>
                   ))}
                 </div>
@@ -303,7 +321,7 @@ export function Mixes() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.15em', color: 'var(--ink-faint)', marginTop: 10 }}>
                   <span>{fmt(curTime)}</span>
-                  <span>{mixDur ? fmt(mixDur) : m.len}</span>
+                  <span>{mixDur ? fmt(mixDur) : m.duration}</span>
                 </div>
               </div>
 
@@ -311,9 +329,9 @@ export function Mixes() {
                 <Pill variant="solid" onClick={toggle}>
                   {playing ? '❙❙ Pause' : '▶ Play preview'}
                 </Pill>
-                <Pill href={m.scUrl || SC_PROFILE} target="_blank">SoundCloud ↗</Pill>
-                {m.spotifyUrl && <Pill href={m.spotifyUrl} target="_blank">Spotify ↗</Pill>}
-                {m.youtubeUrl && <Pill href={m.youtubeUrl} target="_blank">YouTube ↗</Pill>}
+                <Pill href={m.sc_url || SC_PROFILE} target="_blank">SoundCloud ↗</Pill>
+                {m.spotify_url && <Pill href={m.spotify_url} target="_blank">Spotify ↗</Pill>}
+                {m.youtube_url && <Pill href={m.youtube_url} target="_blank">YouTube ↗</Pill>}
               </div>
             </div>
           </div>
@@ -322,7 +340,7 @@ export function Mixes() {
         {/* Hidden SC Widget iframe for audio engine */}
         {hasScUrl && (
           <SCWidget
-            scUrl={m.scUrl}
+            scUrl={m.sc_url}
             playing={playing}
             iframeRef={scIframeRef}
           />
@@ -330,8 +348,8 @@ export function Mixes() {
 
         {/* Catalog list */}
         <div style={{ marginTop: 10 }}>
-          {MIXES.map((mix, i) => (
-            <CatalogRow key={mix.n} mix={mix} active={i === active} onClick={() => setActive(i)} />
+          {mixes.map((mix, i) => (
+            <CatalogRow key={mix.catalog_no} mix={mix} active={i === active} onClick={() => setActive(i)} />
           ))}
         </div>
       </div>
@@ -354,15 +372,15 @@ function CatalogRow({ mix, active, onClick }) {
         background: hover ? 'color-mix(in oklab, var(--ink) 4%, transparent)' : 'transparent',
       }}
     >
-      <Mono style={{ color: active ? 'var(--accent)' : 'var(--ink-faint)' }}>BA {mix.n}</Mono>
+      <Mono style={{ color: active ? 'var(--accent)' : 'var(--ink-faint)' }}>BA {mix.catalog_no}</Mono>
       <div style={{
         fontFamily: 'var(--display)', fontSize: 'clamp(22px,2.8vw,34px)', fontStyle: 'italic', fontWeight: 400,
         color: active ? 'var(--accent)' : 'var(--ink)',
         transform: hover ? 'translateX(6px)' : 'translateX(0)',
         transition: 'transform 0.35s ease, color 0.3s ease',
       }}>{mix.title}</div>
-      <Mono style={{ color: 'var(--ink-soft)' }}>{mix.tags.join(' · ')}</Mono>
-      <Mono style={{ color: 'var(--ink-faint)' }}>{mix.date} · {mix.len}</Mono>
+      <Mono style={{ color: 'var(--ink-soft)' }}>{(mix.tags || []).join(' · ')}</Mono>
+      <Mono style={{ color: 'var(--ink-faint)' }}>{mix.release_date} · {mix.duration}</Mono>
     </div>
   )
 }

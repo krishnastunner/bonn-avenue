@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Reveal } from './ui/Reveal'
 import { Mono } from './ui/Mono'
 import { Pill } from './ui/Pill'
-import { SHOWS } from '../data/shows'
+import { supabase } from '../lib/supabase'
 
 function ShowRow({ show }) {
   const [hover, setHover] = useState(false)
-  const sold = show.status === 'soldout'
+  const sold   = show.status === 'soldout'
   const invite = show.status === 'invite'
 
   return (
@@ -17,7 +17,7 @@ function ShowRow({ show }) {
         style={{
           display: 'grid', gridTemplateColumns: '130px 1fr auto', gap: 24,
           alignItems: 'center', padding: '30px 12px',
-          borderTop: '1px solid var(--line)', position: 'relative',
+          borderTop: '1px solid var(--line)',
           transition: 'background 0.3s ease',
           background: hover ? 'color-mix(in oklab, var(--ink) 4%, transparent)' : 'transparent',
           opacity: sold ? 0.55 : 1,
@@ -38,10 +38,10 @@ function ShowRow({ show }) {
           </Mono>
         </div>
         <div>
-          {sold && <Mono style={{ color: 'var(--ink-faint)' }}>Sold out</Mono>}
+          {sold   && <Mono style={{ color: 'var(--ink-faint)' }}>Sold out</Mono>}
           {invite && <Mono style={{ color: 'var(--ink-faint)' }}>Invite only</Mono>}
           {!sold && !invite && (
-            <Pill href={show.ticketUrl || '#book'} target={show.ticketUrl ? '_blank' : undefined}>
+            <Pill href={show.ticket_url || '#book'} target={show.ticket_url ? '_blank' : undefined}>
               Tickets ↗
             </Pill>
           )}
@@ -52,6 +52,20 @@ function ShowRow({ show }) {
 }
 
 export function Shows() {
+  const [shows, setShows] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('shows')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data) setShows(data)
+        setLoading(false)
+      })
+  }, [])
+
   return (
     <section id="shows" style={{
       padding: 'clamp(80px, 12vw, 160px) clamp(24px, 5vw, 80px)',
@@ -71,7 +85,10 @@ export function Shows() {
         </Reveal>
 
         <div>
-          {SHOWS.map((s, i) => <ShowRow key={i} show={s} />)}
+          {loading
+            ? <div style={{ padding: '40px 12px', fontFamily: 'var(--mono)', fontSize: 11, opacity: 0.5 }}>Loading…</div>
+            : shows.map(s => <ShowRow key={s.id} show={s} />)
+          }
         </div>
 
         <Reveal>
